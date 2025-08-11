@@ -18,19 +18,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 # Get API key from environment variable
-GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 
-if not GROQ_API_KEY:
-    logger.error("GROQ_API_KEY environment variable is not set!")
-    raise ValueError("GROQ_API_KEY environment variable is required. Please set it in your environment or .env file.")
-
-# Initialize the IT department
-try:
-    it_department = BankITDepartment(GROQ_API_KEY)
-    logger.info("IT Department initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize IT Department: {e}")
-    raise
 
 @dataclass
 class TeamMember:
@@ -281,7 +269,20 @@ def get_member_memory(member_name):
             "conversation_history": member.conversation_history
         })
     return jsonify({"error": "Member not found"}), 404
+    
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 
+if not GROQ_API_KEY:
+    logger.error("GROQ_API_KEY environment variable is not set!")
+    raise ValueError("GROQ_API_KEY environment variable is required. Please set it in your environment or .env file.")
+
+# Initialize the IT department
+try:
+    it_department = BankITDepartment(GROQ_API_KEY)
+    logger.info("IT Department initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize IT Department: {e}")
+    raise
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5000))
