@@ -1,5 +1,4 @@
 import os
-from dotenv import load_dotenv
 import asyncio
 import json
 import threading
@@ -9,16 +8,19 @@ from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-from groq import Groq
 import logging
 
 # Load environment variables
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # dotenv not available, skip
+    pass
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-# Get API key from environment variable
-
 
 @dataclass
 class TeamMember:
@@ -48,7 +50,17 @@ class BankITDepartment:
         if not groq_api_key:
             raise ValueError("GROQ_API_KEY is required but not provided")
         
-        self.client = Groq(api_key=groq_api_key)
+        # Initialize Groq client with proper error handling
+        try:
+            from groq import Groq
+            self.client = Groq(api_key=groq_api_key)
+            logger.info("Groq client initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Groq client: {e}")
+            # Fallback: create a mock client for testing
+            self.client = None
+            logger.warning("Running in mock mode - responses will be simulated")
+        
         self.team_members = self._create_team()
         self.conversation_log = []
         self.meeting_notes = []
@@ -103,9 +115,30 @@ class BankITDepartment:
         
         return members
     
+    def _generate_mock_response(self, member_name: str, user_message: str) -> str:
+        """Generate mock response when Groq API is not available"""
+        member = self.team_members[member_name]
+        
+        mock_responses = {
+            "Sarah Mitchell": f"As IT Supervisor, I think we need to understand your process better. Can you provide more details about the volume and frequency? - Sarah",
+            "Alex Chen": f"From a systems perspective, this sounds like something we could automate with scripting. What systems are currently involved? - Alex",
+            "Maria Rodriguez": f"I'd like to understand the data flow here. How much data are we talking about and where is it stored? - Maria",
+            "James Wilson": f"Security-wise, we need to ensure any automation follows our compliance requirements. What sensitive data is involved? - James",
+            "Emily Davis": f"This could be perfect for a web application. Have you considered a user-friendly interface for this process? - Emily"
+        }
+        
+        return mock_responses.get(member_name, f"That's an interesting challenge. Let me think about how my {member.role} expertise can help solve this. - {member_name.split()[0]}")
+    
     async def generate_response(self, member_name: str, user_message: str, context: str) -> str:
         """Generate response from specific team member using Groq API"""
         member = self.team_members[member_name]
+        
+        # If Groq client is not available, use mock responses
+        if not self.client:
+            response = self._generate_mock_response(member_name, user_message)
+            member.add_to_memory(f"User said: {user_message[:100]}...")
+            member.add_to_memory(f"I responded: {response[:100]}...")
+            return response
         
         system_prompt = f"""You are {member.name}, {member.role} in a bank's IT department.
 
@@ -153,7 +186,8 @@ Respond as {member.name} would, considering your role and personality."""
             
         except Exception as e:
             logger.error(f"Error generating response for {member_name}: {e}")
-            return f"I'm having trouble processing that right now. Could you repeat the question?"
+            # Fallback to mock response
+            return self._generate_mock_response(member_name, user_message)
     
     async def facilitate_discussion(self, user_message: str, selected_members: List[str] = None) -> Dict:
         """Facilitate discussion with selected team members"""
@@ -181,7 +215,7 @@ Respond as {member.name} would, considering your role and personality."""
                 responses[member_name] = response
             except Exception as e:
                 logger.error(f"Error getting response from {member_name}: {e}")
-                responses[member_name] = "I need a moment to process that."
+                responses[member_name] = f"I need a moment to process that. - {member_name.split()[0]}"
         
         # Log the conversation
         self.conversation_log.append({
@@ -207,9 +241,21 @@ Respond as {member.name} would, considering your role and personality."""
 app = Flask(__name__)
 CORS(app)
 
+# Get API key from environment variable
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
+
+if not GROQ_API_KEY:
+    logger.warning("GROQ_API_KEY environment variable is not set! Running in demo mode.")
+    GROQ_API_KEY = "demo_key"
+
 # Initialize the IT department
-GROQ_API_KEY = "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"
-it_department = BankITDepartment(GROQ_API_KEY)
+try:
+    it_department = BankITDepartment(GROQ_API_KEY)
+    logger.info("IT Department initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize IT Department: {e}")
+    # Create a fallback instance
+    it_department = BankITDepartment("demo_key")
 
 @app.route('/')
 def index():
@@ -269,26 +315,22 @@ def get_member_memory(member_name):
             "conversation_history": member.conversation_history
         })
     return jsonify({"error": "Member not found"}), 404
-    
-GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 
-if not GROQ_API_KEY:
-    logger.error("GROQ_API_KEY environment variable is not set!")
-    raise ValueError("GROQ_API_KEY environment variable is required. Please set it in your environment or .env file.")
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        "status": "healthy",
+        "groq_client": "connected" if it_department.client else "mock_mode",
+        "team_members": len(it_department.team_members)
+    })
 
-# Initialize the IT department
-try:
-    it_department = BankITDepartment(GROQ_API_KEY)
-    logger.info("IT Department initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize IT Department: {e}")
-    raise
 if __name__ == '__main__':
-    import os
     port = int(os.environ.get('PORT', 5000))
     debug_mode = os.environ.get('FLASK_ENV') == 'development'
     
     logger.info(f"Starting server on port {port}")
     logger.info(f"Debug mode: {debug_mode}")
+    logger.info(f"Groq client: {'Connected' if it_department.client else 'Mock Mode'}")
     
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
