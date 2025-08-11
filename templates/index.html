@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank IT Department Meeting - Process Automation Discussion</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏦 Bank IT Department Meeting</h1>
+            <p>Discussing Your Department's Process Automation Opportunities</p>
+        </header>
+
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="team-panel">
+                    <h3>IT Team Members</h3>
+                    <div class="member-selection">
+                        <label>
+                            <input type="checkbox" id="select-all" checked> Select All
+                        </label>
+                    </div>
+                    <div id="team-list" class="team-list">
+                        <!-- Team members will be loaded here -->
+                    </div>
+                </div>
+
+                <div class="meeting-info">
+                    <h4>Meeting Status</h4>
+                    <div id="meeting-status">
+                        <p>✅ Ready to discuss your processes</p>
+                        <p id="participant-count">Participants: Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-container">
+                <div class="conversation-header">
+                    <h3>Process Automation Discussion</h3>
+                    <p>Tell us about your department's processes so we can identify automation opportunities</p>
+                </div>
+
+                <div id="conversation" class="conversation">
+                    <div class="system-message">
+                        <p><strong>Meeting Started</strong> - The IT team is ready to learn about your department's processes. Please describe what your team does daily, weekly, or monthly that might benefit from automation.</p>
+                    </div>
+                </div>
+
+                <div class="input-container">
+                    <div class="input-group">
+                        <textarea 
+                            id="user-input" 
+                            placeholder="Describe your department's processes, tasks, or challenges that might benefit from automation..."
+                            rows="3"></textarea>
+                        <button id="send-btn" class="send-btn">
+                            <span>Send to IT Team</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="memory-panel" id="memory-panel" style="display: none;">
+            <div class="memory-header">
+                <h4 id="memory-title">Team Member Memory</h4>
+                <button id="close-memory" class="close-btn">&times;</button>
+            </div>
+            <div id="memory-content" class="memory-content">
+                <!-- Memory content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
