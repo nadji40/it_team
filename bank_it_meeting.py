@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 import asyncio
 import json
 import threading
@@ -10,9 +12,25 @@ from flask_cors import CORS
 from groq import Groq
 import logging
 
+# Load environment variables
+load_dotenv()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+# Get API key from environment variable
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
+
+if not GROQ_API_KEY:
+    logger.error("GROQ_API_KEY environment variable is not set!")
+    raise ValueError("GROQ_API_KEY environment variable is required. Please set it in your environment or .env file.")
+
+# Initialize the IT department
+try:
+    it_department = BankITDepartment(GROQ_API_KEY)
+    logger.info("IT Department initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize IT Department: {e}")
+    raise
 
 @dataclass
 class TeamMember:
@@ -39,6 +57,9 @@ class TeamMember:
 
 class BankITDepartment:
     def __init__(self, groq_api_key: str):
+        if not groq_api_key:
+            raise ValueError("GROQ_API_KEY is required but not provided")
+        
         self.client = Groq(api_key=groq_api_key)
         self.team_members = self._create_team()
         self.conversation_log = []
@@ -262,4 +283,11 @@ def get_member_memory(member_name):
     return jsonify({"error": "Member not found"}), 404
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    import os
+    port = int(os.environ.get('PORT', 5000))
+    debug_mode = os.environ.get('FLASK_ENV') == 'development'
+    
+    logger.info(f"Starting server on port {port}")
+    logger.info(f"Debug mode: {debug_mode}")
+    
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)
